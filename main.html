@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIFA World Cup 2026 Countdown</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Roboto Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #111827;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .spinner {
+            border-top-color: #3498db;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Calendar Widget Styles */
+        .calendar-container {
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #ffd700;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.3);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .calendar-header {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .calendar-days-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .calendar-day-name {
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            font-weight: 600;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .calendar-date {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: #e5e7eb;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .calendar-date.empty {
+            visibility: hidden;
+        }
+
+        .calendar-date.highlighted {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            animation: pulse 2s infinite;
+            position: relative;
+        }
+
+        .calendar-date.highlighted::after {
+            content: '🏆';
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            font-size: 16px;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+            }
+
+            50% {
+                box-shadow: 0 0 30px rgba(255, 215, 0, 0.9);
+            }
+        }
+
+        .calendar-label {
+            text-align: center;
+            font-size: 11px;
+            color: #10b981;
+            margin-top: 8px;
+            font-weight: 600;
+        }
+
+        /* Goal Counter Styles */
+        .goal-counter {
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(26, 26, 26, 0.9));
+            border: 3px solid #ffd700;
+            border-radius: 16px;
+            padding: 12px 24px;
+            box-shadow: 0 8px 32px rgba(255, 215, 0, 0.4);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .goal-counter.celebrate {
+            animation: goalCelebrate 0.6s ease;
+            border-color: #ffed4e;
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.8);
+        }
+
+        .goal-icon,
+        .trophy-icon {
+            font-size: 24px;
+        }
+
+        .goal-text {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffd700;
+            letter-spacing: 1px;
+        }
+
+        .goal-count {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        @keyframes goalCelebrate {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            25% {
+                transform: scale(1.2) rotate(-5deg);
+            }
+
+            75% {
+                transform: scale(1.2) rotate(5deg);
+            }
+        }
+
+        .goal-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 72px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.6);
+            z-index: 1000;
+            pointer-events: none;
+            animation: goalMessageAnim 1s ease-out forwards;
+        }
+
+        @keyframes goalMessageAnim {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+
+            50% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1.2);
+            }
+
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor del Canvas 3D (Background) -->
+    <div id="canvas-container">
+        <canvas id="three-canvas"></canvas>
+    </div>
+
+    <!-- UI Overlay (Foreground - Tailwind CSS) -->
+    <div id="ui-overlay" class="absolute top-0 left-0 z-10 w-full h-full p-4 md:p-8 pointer-events-none">
+
+        <!-- Display de Tiempo y Título (Superior Izquierda) -->
+        <div
+            class="absolute top-4 left-4 md:top-8 md:left-8 bg-black/80 p-4 rounded-xl shadow-2xl transition duration-500 pointer-events-auto max-w-sm">
+            <h1 id="event-title" class="text-white text-xl font-sans font-extrabold">FIFA World Cup 2026</h1>
+            <p id="time-display"
+                class="text-yellow-400 text-4xl md:text-6xl font-mono mt-2 transition duration-300 transform scale-100">
+                00D 00H 00M 00S
+            </p>
+            <p id="event-insight" class="text-gray-400 text-sm mt-1">⚽ Countdown to the biggest football event! Explore
+                the 3D stadium.
+            </p>
+        </div>
+
+        <!-- Goal Counter (Top Right) -->
+        <div id="goal-counter" class="absolute top-4 right-4 md:top-8 md:right-8 pointer-events-auto goal-counter">
+            <span class="goal-icon">⚽</span>
+            <span class="goal-text">GOALS:</span>
+            <span id="goal-count" class="goal-count">0</span>
+            <span class="trophy-icon">🏆</span>
+        </div>
+
+        <!-- Calendar Widget (Bottom Left) -->
+        <div class="absolute bottom-4 left-4 pointer-events-auto calendar-container" style="width: 240px;">
+            <div class="calendar-header">JUNE 2026</div>
+            <div class="calendar-days-header">
+                <div class="calendar-day-name">S</div>
+                <div class="calendar-day-name">M</div>
+                <div class="calendar-day-name">T</div>
+                <div class="calendar-day-name">W</div>
+                <div class="calendar-day-name">T</div>
+                <div class="calendar-day-name">F</div>
+                <div class="calendar-day-name">S</div>
+            </div>
+            <div class="calendar-grid">
+                <!-- Week 1 -->
+                <div class="calendar-date empty"></div>
+                <div class="calendar-date">1</div>
+                <div class="calendar-date">2</div>
+                <div class="calendar-date">3</div>
+                <div class="calendar-date">4</div>
+                <div class="calendar-date">5</div>
+                <div class="calendar-date">6</div>
+                <!-- Week 2 -->
+                <div class="calendar-date">7</div>
+                <div class="calendar-date">8</div>
+                <div class="calendar-date">9</div>
+                <div class="calendar-date">10</div>
+                <div class="calendar-date highlighted">11</div>
+                <div class="calendar-date">12</div>
+                <div class="calendar-date">13</div>
+                <!-- Week 3 -->
+                <div class="calendar-date">14</div>
+                <div class="calendar-date">15</div>
+                <div class="calendar-date">16</div>
+                <div class="calendar-date">17</div>
+                <div class="calendar-date">18</div>
+                <div class="calendar-date">19</div>
+                <div class="calendar-date">20</div>
+                <!-- Week 4 -->
+                <div class="calendar-date">21</div>
+                <div class="calendar-date">22</div>
+                <div class="calendar-date">23</div>
+                <div class="calendar-date">24</div>
+                <div class="calendar-date">25</div>
+                <div class="calendar-date">26</div>
+                <div class="calendar-date">27</div>
+                <!-- Week 5 -->
+                <div class="calendar-date">28</div>
+                <div class="calendar-date">29</div>
+                <div class="calendar-date">30</div>
+                <div class="calendar-date empty"></div>
+                <div class="calendar-date empty"></div>
+                <div class="calendar-date empty"></div>
+                <div class="calendar-date empty"></div>
+            </div>
+            <div class="calendar-label">⚽ World Cup Starts!</div>
+        </div>
+    </div>
+
+    <script>
+        // --- Gemini API Configuration ---
+        const apiKey = "";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+        // --- Three.js Globals ---
+        let scene, camera, renderer, controls, countdownInterval;
+        let astrolabeGroup;
+        let dayRing, hourRing, minuteRing, secondRing;
+        let voxelObjects = []; // To store all voxels for color update
+
+        // --- Ball Kicking Interaction ---
+        let soccerBallGroup = null; // Reference to ball mesh group
+        let ballKicked = false;
+        let ballVelocity = { x: 0, y: 0, z: 0 };
+        let ballAngularVelocity = { x: 0, y: 0, z: 0 };
+        const ballOriginalPosition = { x: 1, y: 0.5, z: 0 };
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let goalCount = 0; // Track scored goals
+
+        const targetDate = new Date('2026-06-11T12:00:00-04:00').getTime(); // FIFA World Cup 2026 Opening Ceremony
+
+        // --- UI Elements ---
+        const timeDisplayEl = document.getElementById('time-display');
+        const eventTitleEl = document.getElementById('event-title');
+        const eventInsightEl = document.getElementById('event-insight');
+        const eventInputEl = document.getElementById('event-input');
+        const generateThemeBtn = document.getElementById('generate-theme-btn');
+        const describeEventBtn = document.getElementById('describe-event-btn');
+        const geminiOutputDiv = document.getElementById('gemini-output');
+        const geminiDescriptionEl = document.getElementById('gemini-description');
+        const themeSpinner = document.getElementById('theme-spinner');
+
+        // --- Current Theme State (World Cup Theme) ---
+        let currentTheme = {
+            roomColor: '0x2d8a3e', // Floor: Soccer Field Green
+            wallColor: '0x4a5568', // Wall: Stadium Gray
+            dayColor: '0xffd700',  // Day Ring: Trophy Gold
+            hourColor: '0xffffff', // Hour Ring: Soccer Ball White
+            minuteColor: '0x00ff00', // Minute Ring: Field Green
+            secondColor: '0x0066cc', // Second Ring: FIFA Blue
+            description: '⚽ Countdown to the biggest football event! Explore the 3D stadium.',
+            title: 'FIFA World Cup 2026'
+        };
+
+        /**
+         * Helper function to create a single Voxel cube and add it to the scene.
+         * Stores the cube in voxelObjects for later color updates.
+         */
+        const addVoxel = (x, y, z, colorHex, name, size = 1) => {
+            const geometry = new THREE.BoxGeometry(size, size, size);
+            const color = new THREE.Color(parseInt(colorHex));
+            const material = new THREE.MeshLambertMaterial({ color: color });
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(x, y, z);
+            cube.name = name;
+            scene.add(cube);
+            voxelObjects.push(cube);
+            return cube;
+        };
+
+        /**
+         * Clears all existing Voxel meshes from the scene but preserves lights and groups.
+         */
+        const clearVoxels = () => {
+            voxelObjects.forEach(obj => {
+                scene.remove(obj);
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) obj.material.dispose();
+            });
+            voxelObjects = [];
+        };
+
+        /**
+         * Rebuilds the 3D room with current theme colors.
+         */
+        const createVoxelRoom = () => {
+            clearVoxels(); // Clear old voxels before building
+
+            const floorColor = currentTheme.roomColor;
+            const wallColor = currentTheme.wallColor || '0x4a5568';
+            const lineColor = '0xffffff'; // White field lines
+
+            // 1. Soccer Field Floor with white line markings
+            for (let x = -5; x < 5; x++) {
+                for (let z = -5; z < 5; z++) {
+                    // Center line
+                    if (z === 0) {
+                        addVoxel(x + 0.5, -0.5, z + 0.5, lineColor, 'field_line');
+                    }
+                    // Center circle
+                    else if (Math.sqrt(x * x + z * z) < 1.5 && Math.sqrt(x * x + z * z) > 1.2) {
+                        addVoxel(x + 0.5, -0.5, z + 0.5, lineColor, 'center_circle');
+                    }
+                    // Penalty box lines
+                    else if ((x === -4 || x === 3) && (z > -3 && z < 3)) {
+                        addVoxel(x + 0.5, -0.5, z + 0.5, lineColor, 'penalty_box');
+                    }
+                    else if ((z === -3 || z === 2) && (x > -5 && x < -3)) {
+                        addVoxel(x + 0.5, -0.5, z + 0.5, lineColor, 'penalty_box');
+                    }
+                    else if ((z === -3 || z === 2) && (x > 2 && x < 4)) {
+                        addVoxel(x + 0.5, -0.5, z + 0.5, lineColor, 'penalty_box');
+                    }
+                    // Green grass
+                    else {
+                        addVoxel(x + 0.5, -0.5, z + 0.5, floorColor, 'floor_voxel');
+                    }
+                }
+            }
+
+            // 2. Stadium Wall (Back Wall with Timer)
+            for (let x = -5; x < 5; x++) {
+                for (let y = 0; y < 6; y++) {
+                    addVoxel(x + 0.5, y + 0.5, -4.5, wallColor, 'wall_voxel', 1);
+                }
+            }
+
+            // 3. Goal Posts (Left side)
+            // Left post
+            addVoxel(-4.5, 0.5, -2, lineColor, 'goal_post', 0.3);
+            addVoxel(-4.5, 1, -2, lineColor, 'goal_post', 0.3);
+            addVoxel(-4.5, 1.5, -2, lineColor, 'goal_post', 0.3);
+            // Right post
+            addVoxel(-4.5, 0.5, 2, lineColor, 'goal_post', 0.3);
+            addVoxel(-4.5, 1, 2, lineColor, 'goal_post', 0.3);
+            addVoxel(-4.5, 1.5, 2, lineColor, 'goal_post', 0.3);
+            // Crossbar
+            addVoxel(-4.5, 1.5, -1, lineColor, 'goal_crossbar', 0.3);
+            addVoxel(-4.5, 1.5, 0, lineColor, 'goal_crossbar', 0.3);
+            addVoxel(-4.5, 1.5, 1, lineColor, 'goal_crossbar', 0.3);
+
+            // 4. Soccer Ball (3D voxel sphere) - Create as a group for interaction
+            if (soccerBallGroup) {
+                scene.remove(soccerBallGroup);
+            }
+            soccerBallGroup = new THREE.Group();
+            soccerBallGroup.position.set(ballOriginalPosition.x, ballOriginalPosition.y, ballOriginalPosition.z);
+            soccerBallGroup.name = 'soccer_ball';
+
+            // White panels
+            const addBallVoxel = (x, y, z, colorHex, size) => {
+                const geometry = new THREE.BoxGeometry(size, size, size);
+                const color = new THREE.Color(parseInt(colorHex));
+                const material = new THREE.MeshLambertMaterial({ color: color });
+                const cube = new THREE.Mesh(geometry, material);
+                cube.position.set(x, y, z);
+                soccerBallGroup.add(cube);
+            };
+
+            addBallVoxel(0, 0, 0, '0xffffff', 0.6);
+            addBallVoxel(0.3, 0, 0, '0xffffff', 0.4);
+            addBallVoxel(-0.3, 0, 0, '0xffffff', 0.4);
+            addBallVoxel(0, 0.3, 0, '0xffffff', 0.4);
+            addBallVoxel(0, -0.3, 0, '0xffffff', 0.4);
+            // Black panels
+            addBallVoxel(0.2, 0.2, 0.2, '0x000000', 0.3);
+            addBallVoxel(-0.2, 0.2, 0.2, '0x000000', 0.3);
+            addBallVoxel(0.2, -0.2, -0.2, '0x000000', 0.3);
+            addBallVoxel(-0.2, -0.2, -0.2, '0x000000', 0.3);
+
+            scene.add(soccerBallGroup);
+
+            // 5. Trophy on Display Stand (Front-Center)
+            // Stand base
+            for (let x = -1; x < 1; x++) {
+                for (let z = 3; z < 5; z++) {
+                    addVoxel(x + 0.5, 0.5, z + 0.5, '0x8b4513', 'stand', 1);
+                }
+            }
+            // Trophy (Gold)
+            const trophyGold = '0xffd700';
+            addVoxel(0, 1.5, 4, trophyGold, 'trophy_base', 0.6);
+            addVoxel(0, 2, 4, trophyGold, 'trophy_stem', 0.4);
+            addVoxel(0, 2.5, 4, trophyGold, 'trophy_cup', 0.7);
+            addVoxel(0, 3, 4, trophyGold, 'trophy_top', 0.5);
+            addVoxel(-0.3, 2.5, 4, trophyGold, 'trophy_handle_left', 0.3);
+            addVoxel(0.3, 2.5, 4, trophyGold, 'trophy_handle_right', 0.3);
+
+            // 6. Corner Flags
+            // Flag 1 (front-left)
+            addVoxel(-4.5, 0.5, 4.5, lineColor, 'flag_pole', 0.2);
+            addVoxel(-4.5, 1, 4.5, lineColor, 'flag_pole', 0.2);
+            addVoxel(-4.3, 1.2, 4.5, '0xff0000', 'flag', 0.4);
+            // Flag 2 (front-right)
+            addVoxel(4.5, 0.5, 4.5, lineColor, 'flag_pole', 0.2);
+            addVoxel(4.5, 1, 4.5, lineColor, 'flag_pole', 0.2);
+            addVoxel(4.3, 1.2, 4.5, '0xff0000', 'flag', 0.4);
+
+            // Re-create astrolabe (it clears its children when created)
+            if (astrolabeGroup) {
+                scene.remove(astrolabeGroup);
+                astrolabeGroup = null;
+            }
+            createAstrolabe();
+        };
+
+        /**
+         * Creates and attaches the Astrolabe 3D structure.
+         */
+        const createAstrolabe = () => {
+            astrolabeGroup = new THREE.Group();
+            astrolabeGroup.position.set(0.5, 3, -3.9);
+            scene.add(astrolabeGroup);
+
+            // Voxel material colors based on current theme
+            const colorDay = new THREE.Color(parseInt(currentTheme.dayColor));
+            const colorHour = new THREE.Color(parseInt(currentTheme.hourColor));
+            const colorMinute = new THREE.Color(parseInt(currentTheme.minuteColor));
+            const colorSecond = new THREE.Color(parseInt(currentTheme.secondColor));
+
+            // Central mounting block (reused from initial load)
+            const centerVoxel = addVoxel(0.5, 3, -4, '0x333333', 'center_mount', 1);
+            if (astrolabeGroup.parent) astrolabeGroup.parent.remove(centerVoxel); // Move center voxel to be controlled by room
+            scene.add(centerVoxel);
+
+            // Day Ring (Largest, for days)
+            dayRing = new THREE.Group();
+            const dayRadius = 1.5;
+            for (let i = 0; i < 30; i++) {
+                const angle = (i / 30) * Math.PI * 2;
+                const x = Math.cos(angle) * dayRadius;
+                const y = Math.sin(angle) * dayRadius;
+                const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+                const voxel = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: colorDay }));
+                voxel.position.set(x, y, 0);
+                dayRing.add(voxel);
+            }
+            astrolabeGroup.add(dayRing);
+
+            // Hour Ring (Medium size)
+            hourRing = new THREE.Group();
+            const hourRadius = 1.0;
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const x = Math.cos(angle) * hourRadius;
+                const y = Math.sin(angle) * hourRadius;
+                const geometry = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+                const voxel = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: colorHour }));
+                voxel.position.set(x, y, 0.2);
+                hourRing.add(voxel);
+            }
+            astrolabeGroup.add(hourRing);
+
+            // Minute Ring (Small)
+            minuteRing = new THREE.Group();
+            const minuteRadius = 0.5;
+            for (let i = 0; i < 60; i++) {
+                const angle = (i / 60) * Math.PI * 2;
+                const x = Math.cos(angle) * minuteRadius;
+                const y = Math.sin(angle) * minuteRadius;
+                const geometry = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+                const voxel = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: colorMinute }));
+                voxel.position.set(x, y, 0.4);
+                minuteRing.add(voxel);
+            }
+            astrolabeGroup.add(minuteRing);
+
+            // Second Ring (Innermost, for rapid movement)
+            secondRing = new THREE.Group();
+            const secondRadius = 0.25;
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2;
+                const x = Math.cos(angle) * secondRadius;
+                const y = Math.sin(angle) * secondRadius;
+                const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+                const voxel = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: colorSecond }));
+                voxel.position.set(x, y, 0.6);
+                secondRing.add(voxel);
+            }
+            astrolabeGroup.add(secondRing);
+        };
+
+        // --- Core Three.js Logic ---
+        const rotateAstrolabe = (days, hours, minutes, seconds) => {
+            // Rotations based on time fractions
+            const daysFraction = (days % 30) / 30;
+            dayRing.rotation.z = daysFraction * Math.PI * 2;
+            const hourFraction = (hours + minutes / 60) / 24;
+            hourRing.rotation.z = hourFraction * Math.PI * 2;
+            const minuteFraction = (minutes + seconds / 60) / 60;
+            minuteRing.rotation.z = minuteFraction * Math.PI * 2;
+            const secondFraction = seconds / 60;
+            secondRing.rotation.z = secondFraction * Math.PI * 2;
+        };
+
+        const updateCountdown = () => {
+            const now = new Date().getTime();
+            let distance = targetDate - now;
+
+            if (distance < 0) {
+                clearInterval(countdownInterval);
+                timeDisplayEl.innerHTML = "EVENTO EXPIRADO";
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            distance %= (1000 * 60 * 60 * 24);
+            const hours = Math.floor(distance / (1000 * 60 * 60));
+            distance %= (1000 * 60 * 60);
+            const minutes = Math.floor(distance / (1000 * 60));
+            distance %= (1000 * 60);
+            const seconds = Math.floor(distance / 1000);
+
+            const formatTimePart = (value) => String(value).padStart(2, '0');
+
+            // Update HTML overlay
+            timeDisplayEl.innerHTML = `
+                <span class="font-bold text-yellow-500">${formatTimePart(days)}</span>D 
+                <span class="font-bold text-orange-500">${formatTimePart(hours)}</span>H 
+                <span class="font-bold text-green-500">${formatTimePart(minutes)}</span>M 
+                <span class="font-bold text-blue-500">${formatTimePart(seconds)}</span>S
+            `;
+
+            rotateAstrolabe(days, hours, minutes, seconds);
+        };
+
+        // --- Three.js Initialization ---
+        const init = () => {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            const canvas = document.getElementById('three-canvas');
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x282c34);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.target.set(0.5, 2, -1.5);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // Lights (added once)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+            const pointLight = new THREE.PointLight(0xffffaa, 0.9, 10);
+            pointLight.position.set(0, 4, 0);
+            scene.add(pointLight);
+
+            // Initial 3D elements creation
+            createVoxelRoom();
+
+            // Start the countdown logic
+            updateCountdown();
+            countdownInterval = setInterval(updateCountdown, 1000);
+
+            // Start the render loop
+            animate();
+        };
+
+        // Handle window resize for responsiveness
+        const onWindowResize = () => {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        };
+
+        // Main Render/Animation Loop
+        const animate = () => {
+            requestAnimationFrame(animate);
+            controls.update();
+            updateBallPhysics(); // Update ball if kicked
+            renderer.render(scene, camera);
+        };
+
+        /**
+         * Ball Physics Animation
+         */
+        const updateBallPhysics = () => {
+            if (!ballKicked || !soccerBallGroup) return;
+
+            const gravity = -0.015;
+            const friction = 0.98;
+            const groundLevel = 0.5;
+
+            // Apply gravity
+            ballVelocity.y += gravity;
+
+            // Update position
+            soccerBallGroup.position.x += ballVelocity.x;
+            soccerBallGroup.position.y += ballVelocity.y;
+            soccerBallGroup.position.z += ballVelocity.z;
+
+            // Apply rotation for realism
+            soccerBallGroup.rotation.x += ballAngularVelocity.x;
+            soccerBallGroup.rotation.y += ballAngularVelocity.y;
+            soccerBallGroup.rotation.z += ballAngularVelocity.z;
+
+            // Check for GOAL!
+            const pos = soccerBallGroup.position;
+            if (pos.x <= -4.0 && pos.z > -2 && pos.z < 2 && pos.y > 0.3 && pos.y < 1.8) {
+                onGoalScored();
+                return; // Stop physics after goal
+            }
+
+            // Ground collision and bounce
+            if (soccerBallGroup.position.y <= groundLevel) {
+                soccerBallGroup.position.y = groundLevel;
+                ballVelocity.y *= -0.6; // Bounce with energy loss
+                ballVelocity.x *= friction;
+                ballVelocity.z *= friction;
+                ballAngularVelocity.x *= friction;
+                ballAngularVelocity.y *= friction;
+                ballAngularVelocity.z *= friction;
+
+                // Stop if velocity is very low
+                if (Math.abs(ballVelocity.y) < 0.01 &&
+                    Math.abs(ballVelocity.x) < 0.01 &&
+                    Math.abs(ballVelocity.z) < 0.01) {
+                    ballVelocity = { x: 0, y: 0, z: 0 };
+                    ballAngularVelocity = { x: 0, y: 0, z: 0 };
+
+                    // Reset ball after 2 seconds
+                    setTimeout(() => {
+                        resetBall();
+                    }, 2000);
+                }
+            }
+        };
+
+        /**
+         * Handle goal scored
+         */
+        const onGoalScored = () => {
+            // Increment goal counter
+            goalCount++;
+            document.getElementById('goal-count').textContent = goalCount;
+
+            // Add celebration animation to counter
+            const counter = document.getElementById('goal-counter');
+            counter.classList.add('celebrate');
+            setTimeout(() => counter.classList.remove('celebrate'), 600);
+
+            // Show GOAL! message
+            const goalMsg = document.createElement('div');
+            goalMsg.className = 'goal-message';
+            goalMsg.textContent = '⚽ GOAL! 🏆';
+            document.body.appendChild(goalMsg);
+            setTimeout(() => goalMsg.remove(), 1000);
+
+            // Reset ball after celebration
+            setTimeout(() => {
+                resetBall();
+            }, 1000);
+        };
+
+        /**
+         * Reset ball to original position
+         */
+        const resetBall = () => {
+            if (!soccerBallGroup) return;
+
+            ballKicked = false;
+            soccerBallGroup.position.set(
+                ballOriginalPosition.x,
+                ballOriginalPosition.y,
+                ballOriginalPosition.z
+            );
+            soccerBallGroup.rotation.set(0, 0, 0);
+            ballVelocity = { x: 0, y: 0, z: 0 };
+            ballAngularVelocity = { x: 0, y: 0, z: 0 };
+        };
+
+        /**
+         * Handle ball click to kick
+         */
+        const onBallClick = (event) => {
+            if (ballKicked) return; // Don't kick if already in motion
+
+            // Calculate mouse position in normalized device coordinates
+            const canvas = renderer.domElement;
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Update raycaster
+            raycaster.setFromCamera(mouse, camera);
+
+            // Check for intersections with ball
+            if (soccerBallGroup) {
+                const intersects = raycaster.intersectObjects(soccerBallGroup.children, true);
+
+                if (intersects.length > 0) {
+                    // Ball was clicked! Calculate direction toward goal
+                    const goalPosition = { x: -4.5, y: 1, z: 0 }; // Center of goal
+                    const ballPos = soccerBallGroup.position;
+
+                    const direction = {
+                        x: goalPosition.x - ballPos.x,
+                        y: 0,
+                        z: goalPosition.z - ballPos.z + (Math.random() - 0.5) * 1.0 // Add randomness
+                    };
+
+                    // Normalize and apply power
+                    const distance = Math.sqrt(direction.x ** 2 + direction.z ** 2);
+                    const power = 0.25; // Kick strength
+
+                    ballVelocity = {
+                        x: (direction.x / distance) * power,
+                        y: 0.15, // Upward arc
+                        z: (direction.z / distance) * power
+                    };
+
+                    ballAngularVelocity = {
+                        x: (Math.random() - 0.5) * 0.3,
+                        y: (Math.random() - 0.5) * 0.3,
+                        z: (Math.random() - 0.5) * 0.3
+                    };
+
+                    ballKicked = true;
+                }
+            }
+        };
+
+
+
+        // --- Event Listeners and Startup ---
+        window.addEventListener('resize', onWindowResize);
+        window.addEventListener('click', onBallClick); // Add ball click handler
+        window.onload = init;
+    </script>
+</body>
+</html>
