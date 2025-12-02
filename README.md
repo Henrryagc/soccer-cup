@@ -7,7 +7,7 @@ An immersive 3D voxel-style countdown timer and interactive mini-game for the FI
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=for-the-badge&logo=html5&logoColor=white)
 
 ## 📸 Page Preview
-https://henrryagc.github.io/soccer-cup/index.html
+<a href="https://henrryagc.github.io/soccer-cup/index.html">https://henrryagc.github.io/soccer-cup/index.html</a>
 
 ## 🎯 Features
 
